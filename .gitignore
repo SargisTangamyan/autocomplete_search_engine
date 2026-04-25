@@ -1,0 +1,43 @@
+.env
+
+# Build directories
+build/
+/bin/
+/CMakeFiles/
+/CMakeCache.txt
+/Makefile
+/*.o
+/*.obj
+/*.exe
+/*.out
+
+# VS Code
+.vscode/
+
+# Visual Studio
+*.vcxproj*
+*.suo
+*.user
+*.ipch
+*.pdb
+*.idb
+*.iobj
+*.ipdb
+
+# macOS
+.DS_Store
+
+# Linux swap files
+*.swp
+
+# Windows Thumbs
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+
+engine
+draft.cpp

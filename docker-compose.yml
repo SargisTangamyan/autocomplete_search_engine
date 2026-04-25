@@ -1,0 +1,12 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ${CONTAINER_NAME}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}   # root password
+      MYSQL_DATABASE: ${MYSQL_DATABASE}     # optional, create a DB on startup
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - ./mysql:/docker-entrypoint-initdb.d
+    restart: always
