@@ -29,7 +29,7 @@ private:
     TrieNode* root;
 
     void collectWords(TrieNode* node, const std::string& current, std::vector<std::string>& results);
-    bool removeHelper(TrieNode* node, const std::string& word, int depth);
+    bool removeHelper(TrieNode* node, const std::string& word, int depth, bool& found);
     void destroyNode(TrieNode* node);
 
 };
