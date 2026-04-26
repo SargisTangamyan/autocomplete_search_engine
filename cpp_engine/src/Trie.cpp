@@ -1,121 +1,119 @@
-#include "../include/search/Trie.h"
-#include <iostream>
+#include "search/Trie.h"
+#include <algorithm>
 
-Trie::Trie() {
-    root = new TrieNode();
-}
+//  Construction / destruction
+Trie::Trie() : root_(new TrieNode()), word_count_(0) {}
+Trie::~Trie() { delete root_; }
 
-Trie::~Trie() {
-    destroyNode(root);
-}
+//  insert  –  O(N)
+void Trie::insert(const std::string& word, int id) {
+    if (word.empty()) return;
+    TrieNode* cur = root_;
 
-void Trie:: insert (const std::string& word) {
-    TrieNode* current = root;
     for (char ch : word) {
-        if (current->children.find(ch) == current->children.end()) {
-            current->children[ch] = new TrieNode();
+        auto it = cur->children.find(ch);
+        if (it == cur->children.end()) {
+            cur->children[ch] = new TrieNode();
+            it = cur->children.find(ch);
         }
-        current = current->children[ch];
-    }
-    current->is_end = true;
-}
-
-std::vector<std::string> Trie::search(const std::string& prefix) {
-    TrieNode* current = root;
-
-    for (char ch : prefix) {
-        if (current->children.find(ch) == current->children.end()) {
-            return {};
-        }
-        current = current->children[ch];
+        cur = it->second;
     }
 
-    std::vector<std::string> results;
-    collectWords(current, prefix, results);
-    return results;
+    if (!cur->is_end) {
+        cur->is_end = true;
+        ++word_count_;
+    }
+
+    ++cur->frequency;
+    cur->id = id;
 }
 
+//  search  –  O(N)
+int Trie::search(const std::string& word) const {
+    TrieNode* node = find_node(word);
+
+    if (node && node->is_end) {
+        ++node->frequency;
+        return node->frequency;
+    }
+
+    return 0;
+}
+
+//  remove  –  O(N)
 bool Trie::remove(const std::string& word) {
-    bool found = false;
-    removeHelper(root, word, 0, found);
-    return found;
+    if (!search(word)) return false;
+    remove_helper(root_, word, 0);
+    --word_count_;
+
+
+    return true;
 }
 
-void Trie::collectWords(TrieNode* node, const std::string& current, std::vector<std::string>& results) {
-    if (node->is_end) {
-        results.push_back(current);
-    }
-    for (auto& pair : node->children) {
-        collectWords(pair.second, current + pair.first, results);
-    }
-}
+bool Trie::remove_helper(TrieNode* node, const std::string& word, int depth) {
+    if (!node) return false;
 
-bool Trie::removeHelper(TrieNode* node, const std::string& word, int depth, bool& found) {
-    if (depth == (int)word.size()) {
-        if (node->is_end) {
-            node->is_end = false;
-            found = true;           // word was actually found and removed
-        }
+    if (depth == static_cast<int>(word.size())) {
+        if (!node->is_end) return false;
+        node->is_end = false;
+        node->frequency = 0;
+        node->id = 0;
         return node->children.empty();
     }
 
     char ch = word[depth];
-    if (node->children.find(ch) == node->children.end()) {
-        return false;
-    }
+    auto it = node->children.find(ch);
+    if (it == node->children.end()) return false;
 
-    bool shouldDelete = removeHelper(node->children[ch], word, depth + 1, found);
-
-    if (shouldDelete) {
-        delete node->children[ch];
-        node->children.erase(ch);
-        return node->children.empty() && !node->is_end;
+    bool should_delete = remove_helper(it->second, word, depth + 1);
+    if (should_delete) {
+        delete it->second;
+        node->children.erase(it);
+        return !node->is_end && node->children.empty();
     }
 
     return false;
 }
 
-void Trie::destroyNode(TrieNode* node) {
-    for (auto& pair : node->children) {
-        destroyNode(pair.second);
+//  find_node helper  –  O(N)
+TrieNode* Trie::find_node(const std::string& prefix) const {
+    TrieNode* cur = root_;
+
+    for (char ch : prefix) {
+        auto it = cur->children.find(ch);
+        if (it == cur->children.end()) return nullptr;
+        cur = it->second;
     }
-    delete node;
+
+    return cur;
 }
 
+//  get_completions  –  O(P + S·log k)
+std::vector<Completion>
+Trie::get_completions(const std::string& prefix, int top_n) const {
+    std::vector<Completion> all_results;
+    TrieNode* start = prefix.empty() ? root_ : find_node(prefix);
+    if (!start) return {};
 
-//This is a local test
-/*
-int main() {
-    Trie trie;
+    std::string current = prefix;
+    dfs_collect(start, current, all_results);
 
-    trie.insert("apple");
-    trie.insert("application");
-    trie.insert("apply");
-    trie.insert("banana");
-    trie.insert("band");
+    int k = std::min(top_n, static_cast<int>(all_results.size()));
+    std::partial_sort(all_results.begin(), all_results.begin() + k, all_results.end(),
+        [](const Completion& a, const Completion& b){ return a.score > b.score; });
 
-    // Search test
-    std::vector<std::string> results = trie.search("app");
-    std::cout << "Search 'app':" << std::endl;
-    for (const std::string& word : results) {
-        std::cout << "  " << word << std::endl;
-    }
-
-    // Remove test
-    bool removed = trie.remove("apple");
-    std::cout << "Removed 'apple': " << (removed ? "yes" : "no") << std::endl;
-
-    results = trie.search("app");
-    std::cout << "Search 'app' after removal:" << std::endl;
-    for (const std::string& word : results) {
-        std::cout << "  " << word << std::endl;
-    }
-    
-
-    // Remove non-existent word test
-    bool removedFake = trie.remove("cat");
-    std::cout << "Removed 'cat': " << (removedFake ? "yes" : "no") << std::endl;
-
-    return 0;
+    all_results.resize(k);
+    return all_results;
 }
-*/
+
+//  DFS collector
+void Trie::dfs_collect(TrieNode* node, std::string& current, std::vector<Completion>& results) const {
+    if (node->is_end)
+        results.push_back({ current, node->frequency, node->id });
+
+    for (auto& [ch, child] : node->children) {
+        current.push_back(ch);
+        dfs_collect(child, current, results);
+        current.pop_back();
+    }
+}
