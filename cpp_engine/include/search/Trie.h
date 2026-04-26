@@ -1,14 +1,26 @@
-#define TRIE_H
-
+#pragma once
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <functional>
+
+// Result of a prefix 
+struct Completion {
+    std::string word;
+    int score;           // cumulative frequency + recency bonus
+    int id;              // database row id (0 when loaded from file)
+};
 
 struct TrieNode {
     std::unordered_map<char, TrieNode*> children;
     bool is_end = false;
+    int  frequency = 0;
+    int  id = 0;              // DB row id of this word
 
-    TrieNode() : is_end(false) {}
+    ~TrieNode() {
+        for (auto& [ch, child] : children)
+            delete child;
+    }
 };
 
 class Trie {
@@ -16,20 +28,37 @@ public:
     Trie();
     ~Trie();
 
-    //Inserting a word into the trie
-    void insert(const std::string& word);
-
-    //Returning all words that start with the given prefix
-    std::vector<std::string> search(const std::string& prefix);
-
-    //Remove a specific word from the trie
+    // Core operations  –  O(N) each, N = word length
+    void insert(const std::string& word, int id = 0);
+    int  search(const std::string& word) const;   // returns frequency, 0 if absent
     bool remove(const std::string& word);
 
+    // Prefix query  –  O(P + S·log k), P = prefix len, S = subtree nodes, k = top_n
+    // Returns up to top_n Completion entries sorted descending by score
+    std::vector<Completion>
+    get_completions(const std::string& prefix, int top_n = 5) const;
+
+    // Fuzzy prefix query (edit distance ≤ 1)
+    std::vector<Completion>
+    get_fuzzy_completions(const std::string& prefix, int top_n = 5) const;
+
+    // Visitor: fn(word, score, id)
+    void for_each_word(std::function<void(const std::string&, int, int)> fn) const;
+
+    int word_count() const { return word_count_; }
+
 private:
-    TrieNode* root;
+    TrieNode* root_;
+    int word_count_;
 
-    void collectWords(TrieNode* node, const std::string& current, std::vector<std::string>& results);
-    bool removeHelper(TrieNode* node, const std::string& word, int depth, bool& found);
-    void destroyNode(TrieNode* node);
+    TrieNode* find_node(const std::string& prefix) const;
+    bool remove_helper(TrieNode* node, const std::string& word, int depth);
+    void dfs_collect(TrieNode* node, std::string& current, std::vector<Completion>& results) const;
 
+    void fuzzy_dfs(TrieNode* node,
+                        const std::string& prefix,
+                        int prefix_idx,
+                        std::string& current,
+                        int edits_left,
+                        std::vector<Completion>& results) const;
 };
