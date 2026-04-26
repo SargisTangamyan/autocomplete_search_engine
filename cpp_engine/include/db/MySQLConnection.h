@@ -3,6 +3,7 @@
 #include <cppconn/driver.h>
 #include <cppconn/connection.h>
 #include <cppconn/exception.h>
+#include <cppconn/prepared_statement.h>
 #include <memory>
 
 class MySQLConnection : public IDBConnection {
@@ -10,9 +11,19 @@ private:
     std::unique_ptr<sql::Connection> conn;
     sql::Driver* driver;
 
-public:
+    // Private constructor for singleton
     MySQLConnection() {
         driver = get_driver_instance();
+    }
+
+public:
+    // Prevent copying — only one instance should exist
+    MySQLConnection(const MySQLConnection&) = delete;
+    MySQLConnection& operator=(const MySQLConnection&) = delete;
+
+    static MySQLConnection& getInstance() {
+        static MySQLConnection instance;
+        return instance;
     }
 
     void connect(const std::string& host,
@@ -27,3 +38,4 @@ public:
         return conn.get();
     }
 };
+
