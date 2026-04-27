@@ -27,7 +27,9 @@ void AutocompleteEngine::load_word(const std::string& word, int frequency, int i
 }
 
 void AutocompleteEngine::load_words(const std::vector<std::string>& words) {
-    (void)words;
+    for (const auto& w : words) {
+        load_word(w);
+    }
 }
 
 bool AutocompleteEngine::load_from_file(const std::string& filepath) {
