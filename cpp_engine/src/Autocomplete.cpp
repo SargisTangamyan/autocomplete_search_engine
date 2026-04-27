@@ -20,6 +20,7 @@ AutocompleteEngine::AutocompleteEngine(int top_n, int cache_size, int recency_bo
 void AutocompleteEngine::load_word(const std::string& word, int frequency, int id) {
     std::string norm = normalize(word);
     if (norm.empty()) return;
+
     for (int i = 0; i < frequency; ++i) {
         trie_.insert(norm, id);
     }
