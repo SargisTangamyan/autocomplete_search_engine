@@ -33,14 +33,38 @@ void AutocompleteEngine::load_words(const std::vector<std::string>& words) {
 }
 
 bool AutocompleteEngine::load_from_file(const std::string& filepath) {
-    (void)filepath;
-    return false;
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "[AutocompleteEngine] Cannot open file: " << filepath << "\n";
+        return false;
+    }
+
+    std::string line;
+    int count = 0;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+
+        if (!line.empty()) {
+            load_word(line);
+            ++count;
+        }
+    }
+
+    std::cerr << "[engine] Loaded " << count << " words from file '" << filepath << "'\n";
+    return true;
 }
 
 bool AutocompleteEngine::load_from_db(DictionaryRepository& dictRepo, const std::string& tableName) {
-    (void)dictRepo;
-    (void)tableName;
-    return false;
+    auto entries = dictRepo.getAll(tableName);
+    int count = 0;
+
+    for (auto& entry : entries) {
+        load_word(entry.word, entry.frequency, entry.id);
+        ++count;
+    }
+
+    std::cerr << "[engine] Loaded " << count << " words from table '" << tableName << "'\n";
+    return true;
 }
 
 void AutocompleteEngine::clear() {
@@ -49,13 +73,39 @@ void AutocompleteEngine::clear() {
 }
 
 std::vector<Completion> AutocompleteEngine::query(const std::string& prefix) {
-    (void)prefix;
-    return {};
+    std::string norm = normalize(prefix);
+
+    if (!norm.empty())
+        cache_.record(norm);
+
+    auto results = trie_.get_completions(norm, top_n_);
+
+    if (results.empty()) return {};
+
+    cache_.apply_boosts(results);
+
+    if (static_cast<int>(results.size()) > top_n_)
+        results.resize(top_n_);
+
+    return results;
 }
 
 std::vector<Completion> AutocompleteEngine::fuzzy_query(const std::string& prefix) {
-    (void)prefix;
-    return {};
+    std::string norm = normalize(prefix);
+
+    if (!norm.empty())
+        cache_.record(norm);
+
+    auto results = trie_.get_fuzzy_completions(norm, top_n_);
+
+    if (results.empty()) return {};
+
+    cache_.apply_boosts(results);
+
+    if (static_cast<int>(results.size()) > top_n_)
+        results.resize(top_n_);
+
+    return results;
 }
 
 void AutocompleteEngine::remove_word(const std::string& word) {
