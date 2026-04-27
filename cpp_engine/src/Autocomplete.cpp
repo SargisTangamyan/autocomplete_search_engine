@@ -5,13 +5,24 @@
 #include <algorithm>
 #include <cctype>
 
+static std::string normalize(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+    for (char c : s) {
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    return out;
+}
+
 AutocompleteEngine::AutocompleteEngine(int top_n, int cache_size, int recency_bonus)
     : cache_(cache_size, recency_bonus), top_n_(top_n) {}
 
 void AutocompleteEngine::load_word(const std::string& word, int frequency, int id) {
-    (void)word;
-    (void)frequency;
-    (void)id;
+    std::string norm = normalize(word);
+    if (norm.empty()) return;
+    for (int i = 0; i < frequency; ++i) {
+        trie_.insert(norm, id);
+    }
 }
 
 void AutocompleteEngine::load_words(const std::vector<std::string>& words) {
