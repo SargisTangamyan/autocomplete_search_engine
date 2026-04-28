@@ -1,38 +1,36 @@
 cmake_minimum_required(VERSION 3.16)
-project(search_engine CXX)
+project(autocomplete_engine CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ── Sources ──────────────────────────────────────────────────────────────────
-add_executable(search_engine
-    src/main.cpp
-    src/config/Env.cpp
+# ── Include directories ────────────────────────────────────────────────────
+#    Mirrors your -I./include flag
+include_directories(include)
+
+# ── Source files ───────────────────────────────────────────────────────────
+set(ENGINE_SOURCES
     src/Trie.cpp
+    src/Autocomplete.cpp
+    src/config/Env.cpp          # your existing DB config
 )
 
-# ── Include paths ─────────────────────────────────────────────────────────────
-target_include_directories(search_engine PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    /usr/include/cppconn          # MySQL Connector/C++ headers
+# ── Main binary ────────────────────────────────────────────────────────────
+#    Mirrors: g++ src/main.cpp src/config/Env.cpp -o engine -I./include -lmysqlcppconn
+add_executable(engine
+    src/main.cpp
+    ${ENGINE_SOURCES}
 )
+target_link_libraries(engine mysqlcppconn)
 
-# ── Link libraries ────────────────────────────────────────────────────────────
-target_link_libraries(search_engine PRIVATE mysqlcppconn)
-
-# ── Compiler warnings ─────────────────────────────────────────────────────────
-target_compile_options(search_engine PRIVATE -Wall -Wextra -Wpedantic)
-
-# ── Absolute path to .env baked in at compile time ───────────────────────────
-# Avoids any working-directory sensitivity when running the binary.
-target_compile_definitions(search_engine PRIVATE
-    ENV_FILE_PATH="${CMAKE_SOURCE_DIR}/../.env"
+# ── Benchmark binary ───────────────────────────────────────────────────────
+add_executable(benchmark
+    src/Benchmark.cpp
+    ${ENGINE_SOURCES}
 )
+target_link_libraries(benchmark mysqlcppconn)
 
-# ── Convenience target: build + run ──────────────────────────────────────────
-add_custom_target(run
-    COMMAND search_engine
-    DEPENDS search_engine
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running search_engine..."
-)
+# ── Compiler flags ─────────────────────────────────────────────────────────
+foreach(target engine benchmark)
+    target_compile_options(${target} PRIVATE -Wall -Wextra -O2)
+endforeach()
